@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "ej11_cuit.h"
+#include "verificar_cuit.h"
 
 typedef struct {
     char* nombre;
@@ -38,7 +38,7 @@ int agregarInformacionUsuario(){
     int edad;
     scanf("%d", &edad);
 
-    printf("Ingrese cuit");
+    printf("Ingrese cuit: ");
     char* cuit = (char*)malloc(sizeof(char) * 100);
     scanf("%s", cuit);
 

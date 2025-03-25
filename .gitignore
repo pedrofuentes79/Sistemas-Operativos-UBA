@@ -1,3 +1,5 @@
 venv
 .vagrant
 .vscode/settings.json
+
+bins/
