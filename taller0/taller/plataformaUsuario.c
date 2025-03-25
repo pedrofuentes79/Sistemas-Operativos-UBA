@@ -9,7 +9,7 @@ typedef struct {
     int edad;
 } user_t;
 
-user_t* usuarios[100];
+user_t** usuarios = NULL;
 int cantidad_usuarios = 0;
 
 user_t* crearUsuario(char* nombre, char* cuit, int edad){
@@ -23,6 +23,7 @@ user_t* crearUsuario(char* nombre, char* cuit, int edad){
     usuario->cuit = cuit;
     usuario->edad = edad;
 
+    usuarios = (user_t**)realloc(usuarios, (cantidad_usuarios + 1) * sizeof(user_t*));
     usuarios[cantidad_usuarios] = usuario;
     cantidad_usuarios++;
     return usuario;
