@@ -40,7 +40,7 @@ int agregarInformacionUsuario(){
     scanf("%d", &edad);
 
     printf("Ingrese cuit: ");
-    char* cuit = (char*)malloc(sizeof(char) * 100);
+    char* cuit = (char*)malloc(sizeof(char) * 20);
     scanf("%s", cuit);
 
     if(crearUsuario(nombre, cuit, edad) == 0){
@@ -55,7 +55,6 @@ int agregarInformacionUsuario(){
 }
 
 void verInformacionUsuario(){
-
     if (cantidad_usuarios == 0){
         printf("No hay usuarios registrados\n");
         return;
@@ -64,6 +63,17 @@ void verInformacionUsuario(){
     for (int i = 0; i < cantidad_usuarios; i++){
         printf("nombre: %s, edad: %d, cuit: %s\n", usuarios[i]->nombre, usuarios[i]->edad, usuarios[i]->cuit);
     }
+}
+
+
+void buscarInformacionUsuario(char* cuit){
+    for (int i = 0; i < cantidad_usuarios; i++){
+        if (strcmp(usuarios[i]->cuit, cuit) == 0){
+            printf("nombre: %s, edad: %d, cuit: %s\n", usuarios[i]->nombre, usuarios[i]->edad, usuarios[i]->cuit);
+            return;
+        }
+    }
+    printf("No se encontró información para el CUIT ingresado.\n");
 }
 
 
@@ -81,6 +91,15 @@ int main(){
             if (agregarInformacionUsuario() == 0){
                 break;
             }
+        }
+        else if (strcmp(comando, "salir") == 0){
+            break;
+        }
+        else if (strcmp(comando, "buscarInformacionUsuario") == 0){
+            printf("Ingrese cuit: ");
+            char* cuit = (char*)malloc(sizeof(char) * 20);
+            scanf("%s", cuit);
+            buscarInformacionUsuario(cuit);
         }
         else {
             printf("Comando invalido\n");
