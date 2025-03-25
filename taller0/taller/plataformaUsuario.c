@@ -100,6 +100,8 @@ int main(){
             char* cuit = (char*)malloc(sizeof(char) * 20);
             scanf("%s", cuit);
             buscarInformacionUsuario(cuit);
+            free(cuit);
+            break;
         }
         else {
             printf("Comando invalido\n");
