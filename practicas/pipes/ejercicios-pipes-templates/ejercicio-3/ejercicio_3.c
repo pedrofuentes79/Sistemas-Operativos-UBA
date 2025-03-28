@@ -36,7 +36,9 @@ void ejecutarHijo(int pipe_fd[]) {
   // Contar pares y escribir el resultado
   long resultado = contarPares(desde, hasta);
 
-  printf("Hijo %d: %ld\n", getpid(), resultado);
+  printf("Hijo %d: Contó %ld pares. Desde: %ld, hasta: %ld\n", getpid(), resultado, desde, hasta);
+  write(pipe_fd[WRITE], &resultado, sizeof(resultado));
+  exit(EXIT_SUCCESS);
 }
 
 int main(int argc, char const* argv[]) {
@@ -47,6 +49,7 @@ int main(int argc, char const* argv[]) {
     return 1;
   }
   procesos = atoi(argv[1]);
+  printf("procesos: %d\n", procesos);
 
   // Crear pipes
   int pipe_fd[procesos][2];
@@ -57,7 +60,7 @@ int main(int argc, char const* argv[]) {
   // Crear hijos
   for (int i = 0; i < procesos; i++) {
     pid_t pid = fork();
-    if (fork()== 0) {
+    if (pid == 0) {
       ejecutarHijo(pipe_fd[i]);
     }
     else if (pid == -1) {
@@ -84,14 +87,19 @@ int main(int argc, char const* argv[]) {
 
   // Cerrar pipes inteligentemente
   for (int i = 0; i < procesos; i++){
-    close(pipe_fd[i][READ]);  // Close read end
-    close(pipe_fd[i][WRITE]); // Close write end
-    wait(NULL); // waiteo los procesos
+    close(pipe_fd[i][READ]);  
+    close(pipe_fd[i][WRITE]); 
+    wait(NULL); 
   }
 
 
   long resultado = 0;
   // Leer los resultados de cada hijo
+  for (int i = 0; i < procesos; i++) {
+    int resultado_hijo;
+    read(pipe_fd[i][READ], &resultado_hijo, sizeof(resultado_hijo));
+    resultado += resultado_hijo;
+  }
   printf("Resultado total: %ld\n", resultado);
 
   return 0;
