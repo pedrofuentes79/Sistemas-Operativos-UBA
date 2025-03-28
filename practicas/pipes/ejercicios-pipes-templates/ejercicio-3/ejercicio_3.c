@@ -25,16 +25,16 @@ long contarPares(long desde, long hasta) {
   return cantidad;
 }
 
-void ejecutarHijo(int pipe_fd) {
+void ejecutarHijo(int pipe_fd[]) {
   // Leer del i-ésimo pipe el rango [desde, hasta) para realizar el cómputo
   long desde;
   read(pipe_fd[READ], &desde, sizeof(desde));
 
   long hasta;
-  read(pipe_fd[READ])
+  read(pipe_fd[READ], &hasta, sizeof(hasta));
 
   // Contar pares y escribir el resultado
-  long resultado = contarPares()
+  long resultado = contarPares(desde, hasta);
 
   printf("Hijo %d: %ld\n", getpid(), resultado);
 }
@@ -84,7 +84,8 @@ int main(int argc, char const* argv[]) {
 
   // Cerrar pipes inteligentemente
   for (int i = 0; i < procesos; i++){
-    close(pipe_fd[i]); // solo los write? todo el pipe?
+    close(pipe_fd[i][READ]);  // Close read end
+    close(pipe_fd[i][WRITE]); // Close write end
     wait(NULL); // waiteo los procesos
   }
 
