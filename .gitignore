@@ -3,3 +3,4 @@ venv
 .vscode/settings.json
 
 bins/
+.DS_Store
