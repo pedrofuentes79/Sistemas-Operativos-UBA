@@ -87,18 +87,20 @@ int main(int argc, char const* argv[]) {
 
   // Cerrar pipes inteligentemente
   for (int i = 0; i < procesos; i++){
-    close(pipe_fd[i][READ]);  
+    // cierro solo el pipe de escritura (el que termine de usar)
+    // el de lectura lo cierro cuando lea el resultado
     close(pipe_fd[i][WRITE]); 
     wait(NULL); 
   }
 
-
-  long resultado = 0;
   // Leer los resultados de cada hijo
+  long resultado = 0;
   for (int i = 0; i < procesos; i++) {
-    int resultado_hijo;
+    long resultado_hijo;
     read(pipe_fd[i][READ], &resultado_hijo, sizeof(resultado_hijo));
     resultado += resultado_hijo;
+
+    close(pipe_fd[i][READ]);
   }
   printf("Resultado total: %ld\n", resultado);
 
