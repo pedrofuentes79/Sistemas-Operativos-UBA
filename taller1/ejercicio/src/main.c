@@ -4,32 +4,38 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include <time.h>
 
 int N;
 int K;
 int J;
 int pids_muertos[10];
-int total_muertos;
+int total_muertos = 0;
 
 void sigterm_handler(int signal){
 	// sacar un numero al azar entre 0 y total_procesos - 1
-	// srand(1);
+	srand(time(NULL) ^ getpid());
 	int numero_aleatorio = rand() % N;
 	 
 	if (numero_aleatorio == J){
-		printf("Obtuve el numero maldito. Muero");
+		printf("Obtuve el numero maldito. Muero\n");
 		exit(EXIT_SUCCESS);
 	} else {
+		printf("sobrevivo\n");
 		return; // sobrevivo
 	}
 }
 
 void sigchld_handler(int signal){
-	pid_t pid = wait(NULL);
+	int pid = wait(NULL);
+	pids_muertos[total_muertos] = pid;
+	total_muertos++;
+
 }
 
 void ejecutarHijo(){
 	signal(SIGTERM, sigterm_handler);
+	while(1){sleep(1);};
 }
 
 int main(int argc, char* argv[]) {
@@ -56,15 +62,15 @@ int main(int argc, char* argv[]) {
 	}
 
 	signal(SIGCHLD, sigchld_handler);
-	pid_t hijos[N];
+	int hijos[N];
 
 	// crear N procesos hijos, cada uno con su identificador
 	for (int i = 0; i < N; i++){
-		pid_t pid = fork();
+		int pid = fork();
 		if (pid == 0){
-			hijos[i] = pid;
-			printf("Inicialice hijo con id: %d y PID: %d\n", i, pid);
 			ejecutarHijo();
+		} else if (pid>0){
+			hijos[i] = pid;
 		}
 	}
 
@@ -78,18 +84,20 @@ int main(int argc, char* argv[]) {
 
 	// waitear los procesos que murieron
 
+
 	for(int identificador = 0; identificador<N; identificador++){
-		pid_t pid_actual = hijos[identificador];
+		int pid_actual = hijos[identificador];
 
 		int esta_muerto = 0;
 		for (int i = 0; i<total_muertos; i++){
 			if (pids_muertos[i] == pid_actual){
 				esta_muerto = 1;
+				break;
 			}
 		}
 
 		if (!esta_muerto){
-			printf("El proceso con id: %d y PID: %d sobrevivio", identificador, pid_actual);
+			printf("El proceso con id: %d y PID: %d sobrevivio\n", identificador, pid_actual);
 			kill(pid_actual, SIGKILL);
 		}
 	}
