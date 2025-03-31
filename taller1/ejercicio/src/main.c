@@ -5,13 +5,27 @@
 #include <sys/wait.h>
 #include <signal.h>
 
-void ejecutarHijo(int id, int total_procesos, int numero_maldito){
+int N;
+int K;
+int J;
 
-	// esperar a recibir sigterm
-	// cuando la recibo
-		// sacar un numero al azar entre 0 y total_procesos - 1
-			// si el numero es el maldito; matarme (con FAILURE) y expresar mis ultimas palabras
-			// en caso contrario sobrevivo
+void sigterm_handler(int signal){
+	// sacar un numero al azar entre 0 y total_procesos - 1
+	// srand(1);
+	int numero_aleatorio = rand() % N;
+	 
+	if (numero_aleatorio == J){
+		exit(EXIT_SUCCESS);
+	} else {
+		return; // sobrevivo
+	}
+}
+
+void ejecutarHijo(){
+	signal(SIGTERM, sigterm_handler);
+	while(1){
+		sleep(1);
+	}
 }
 
 
@@ -22,9 +36,10 @@ int main(int argc, char* argv[]) {
 		exit(EXIT_FAILURE);
 	}
 
-	int N = atoi(argv[1]);
-	int K = atoi(argv[2]);
-	int J = atoi(argv[3]);
+	// escribo los valores en las variables globales, accesibles por los hijos ;)
+	N = atoi(argv[1]);
+	K = atoi(argv[2]);
+	J = atoi(argv[3]);
 	
 	// validar inputs
 	if (J >= N || J < 0){
@@ -41,9 +56,9 @@ int main(int argc, char* argv[]) {
 	// crear N procesos hijos, cada uno con su identificador
 	for (int i = 0; i < N; i++){
 		pid_t pid = fork();
-		if (pid == 0){
+		if (pid != 0){
 			hijos[i] = pid;
-			ejecutarHijo(i, N, J);
+			ejecutarHijo();
 		}
 	}
 
@@ -55,12 +70,33 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
+	// waitear los procesos que murieron
 
-	// A CHEQUEAR: 
-
-	printf("\nHijos sobrevivientes:\n");
-	for (int i = 0; i < N; i++){
+	pid_t pids_muertos[N];
+	int total_muertos = 0;
+	while(1){
 		pid_t pid = wait(NULL);
+		if (pid == -1){
+			break;
+		} else {
+			pids_muertos[total_muertos] = pid;
+			total_muertos++;
+		}
+	}
 
-	return 0;
+	for(int identificador = 0; identificador<N; identificador++){
+		pid_t pid_actual = hijos[identificador];
+
+		int esta_muerto = 0;
+		for (int i = 0; i<total_muertos; i++){
+			if (pids_muertos[i] == pid_actual){
+				esta_muerto = 1;
+			}
+		}
+
+		if (!esta_muerto){
+			printf("El proceso con id: %d y PID: %d sobrevivio", identificador, pid_actual);
+			kill(pid_actual, SIGKILL);
+		}
+	}
 }
