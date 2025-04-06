@@ -6,23 +6,71 @@
 #include "constants.h"
 #include "mini-shell-parser.c"
 
-static int run(char ***progs, size_t count)
-{	
+enum { READ = 0, WRITE = 1 };
+
+static int run(char ***progs, size_t n)
+{
+	// n es el numero de programas
 	int r, status;
 
 	//Reservo memoria para el arreglo de pids
 	//TODO: Guardar el PID de cada proceso hijo creado en children[i]
-	pid_t *children = malloc(sizeof(*children) * count);
+	pid_t *children = malloc(sizeof(*children) * n);
 
-	//TODO: Pensar cuantos procesos necesito
-	//TODO: Pensar cuantos pipes necesito.
-
+	// n-1 pipes para n procesos
+	int pipes[n-1][2];
+	for (int i = 0; i < n-1; i++) {
+		if (pipe(pipes[i]) == -1) {
+			perror("Error al crear el pipe :(");
+			return -1;
+		}
+	}
 	//TODO: Para cada proceso hijo:
 			//1. Redireccionar los file descriptors adecuados al proceso
 			//2. Ejecutar el programa correspondiente
 
+	// hoja de ruta
+	// crear el primer proceso. Redirigir su stdout al primer pipe
+	// crear el segundo proceso. Redirigir su stdin al primer pipe. Redirigir su stdout al segundo pipe
+	// crear el tercer proceso. Redirigir su stdin al segundo pipe.
+	// repetir hasta el proceso n-1
+	// al ultimo proceso, redirijo su stdin al anterior pipe. su stdout queda asi, quiero que quede en la terminal`
+
+	for (int i = 0; i < n; i++){
+		pid_t pid = fork();
+		if (pid == -1) {
+			perror("Error al crear el proceso :(");
+			return -1;
+		} else if (pid == 0){
+			// Redirijo el stdin al pipe anterior, excepto para el primer proceso.
+			if (i > 0) {
+				dup2(pipes[i-1][READ], STDIN_FILENO);
+				close(pipes[i-1][WRITE]);
+			}
+			
+			// Redirijo el stdout al pipe siguiente, excepto para el ultimo proceso.
+			if (i < n-1) {
+				dup2(pipes[i][WRITE], STDOUT_FILENO);
+				close(pipes[i][READ]);
+			}
+			
+			// Ejecuto el programa.
+			execvp(progs[i][0], progs[i]);
+		} else {
+			// Si el pid es distinto de 0, estoy en el contexto del padre.
+			// Entonces me guardo el pid del proceso hijo
+			children[i] = pid;
+		}
+	}
+
 	//Espero a los hijos y verifico el estado que terminaron
-	for (int i = 0; i < count; i++) {
+	for (int i = 0; i < n; i++) {
+		// cierro todos los pipes
+		if (i < n-1) {
+			close(pipes[i][READ]);
+			close(pipes[i][WRITE]);
+		}
+		// espero que todos los hijos terminen
 		waitpid(children[i], &status, 0);
 
 		if (!WIFEXITED(status)) {
@@ -47,6 +95,12 @@ int main(int argc, char **argv)
 		return 0;
 	}
 	int programs_count;
+
+	// programs_with_parameters es un array de arrays de strings
+	// cada subarray es un programa con sus parametros
+	// por ejemplo:
+	// programs_with_parameters[0] = ["ls", "-a"]
+	// programs_with_parameters[1] = ["grep", "anillo"]
 	char*** programs_with_parameters = parse_input(argv, &programs_count);
 
 	printf("status: %d\n", run(programs_with_parameters, programs_count));
