@@ -6,7 +6,7 @@
 #include "constants.h"
 #include "mini-shell-parser.c"
 
-enum { READ = 0, WRITE = 1 };
+enum { READ, WRITE };
 
 static int run(char ***progs, size_t n)
 {
@@ -45,16 +45,26 @@ static int run(char ***progs, size_t n)
 			// Redirijo el stdin al pipe anterior, excepto para el primer proceso.
 			if (i > 0) {
 				dup2(pipes[i-1][READ], STDIN_FILENO);
-				close(pipes[i-1][WRITE]);
 			}
 			
 			// Redirijo el stdout al pipe siguiente, excepto para el ultimo proceso.
 			if (i < n-1) {
 				dup2(pipes[i][WRITE], STDOUT_FILENO);
-				close(pipes[i][READ]);
 			}
 			
-			// Ejecuto el programa.
+			// CIERRO LOS PIPES QUE NO VOY A USAR
+			for(int j = 0; j < n; j++){
+				if (i==j){
+					close(pipes[j][READ]);
+				} else if (j == i-1) {
+					close(pipes[j][WRITE]);
+				} else {
+					close(pipes[j][READ]);
+					close(pipes[j][WRITE]);
+				}
+			}
+
+			// Ejecuto el programa
 			execvp(progs[i][0], progs[i]);
 		} else {
 			// Si el pid es distinto de 0, estoy en el contexto del padre.
@@ -63,23 +73,21 @@ static int run(char ***progs, size_t n)
 		}
 	}
 
-	//Espero a los hijos y verifico el estado que terminaron
-	for (int i = 0; i < n; i++) {
-		// cierro todos los pipes
-		if (i < n-1) {
+	for(int i=0; i<n; i++){
+		if (i<n-1){
 			close(pipes[i][READ]);
 			close(pipes[i][WRITE]);
 		}
-		// espero que todos los hijos terminen
-		waitpid(children[i], &status, 0);
 
+		waitpid(children[i], &status, 0);
 		if (!WIFEXITED(status)) {
 			fprintf(stderr, "proceso %d no terminó correctamente [%d]: ",
-			    (int)children[i], WIFSIGNALED(status));
+				(int)children[i], WIFSIGNALED(status));
 			perror("");
 			return -1;
 		}
 	}
+
 	r = 0;
 	free(children);
 
