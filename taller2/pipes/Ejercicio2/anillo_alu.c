@@ -82,17 +82,17 @@ int main(int argc, char **argv)
 			}
 			
 			while(read(pipes[read_index][READ], &current_number, sizeof(int)) > 0){	
+				printf("soy el proceso %d. Recibí %d\n", i, current_number);
 				if(i == start && current_number >= secret_number){
 					// le mando al padre por el pipe n que ya termine
 					write(pipePadre[WRITE], &current_number, sizeof(current_number));
-					
+					printf("envie a padre resultado\n");
 					// cierro mis pipes de escritura
 					close(pipes[write_index][WRITE]);
 					close(pipePadre[WRITE]);
 					close(pipePadre[READ]);
 					}
 				else {
-					printf("soy el proceso %d. Recibí %d\n", i, current_number);
 					current_number++;
 					write(pipes[write_index][WRITE], &current_number, sizeof(int));
 				}
@@ -107,12 +107,14 @@ int main(int argc, char **argv)
 		}
 	}
 
-	write(pipePadre[WRITE], &c, sizeof(c));
+	for(int i=0; i<n; i++){
+		close(pipes[i][READ]);
+		close(pipes[i][WRITE]);
+	}
+	write(pipePadre[WRITE], &c, sizeof(c)); //numero inicial
 
 	for(int i=0; i<n; i++){
 		wait(NULL);
-		close(pipes[i][READ]);
-		close(pipes[i][WRITE]);
 	}
 
 	int result;
@@ -121,5 +123,6 @@ int main(int argc, char **argv)
 	close(pipePadre[WRITE])	;
 
 	printf("El resultado es %d\n", result);
+	return 0;
     
 }
