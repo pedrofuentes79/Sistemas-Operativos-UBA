@@ -20,10 +20,12 @@ int main(int argc, char **argv)
 	n = atoi(argv[1]);
 	c = atoi(argv[2]);
 	start = atoi(argv[3]);
+	int pipePadre[2];
+	pipe(pipePadre);
 
 	// n pipes (por ser anillo) y uno mas para la comunicacion padre->start
-	int pipes[n+1][2];
-	for (int i = 0; i<n+1; i++){
+	int pipes[n][2];
+	for (int i = 0; i<n; i++){
 		pipe(pipes[i]);
 	}
 	
@@ -38,40 +40,59 @@ int main(int argc, char **argv)
 	for(int i = 0; i < n; i++){
 		pid_t pid = fork();
 		if(pid == 0){
+			if (i!=start){
+				close(pipePadre[READ]);
+				close(pipePadre[WRITE]);
+			}
 			// cierro los pipes que no uso
 			for (int j = 0; j<n+1; j++){
+				if(i == 0){
+					if(j == i){
+						close(pipes[j][READ]);
+					} else if(j == n-1){
+						close(pipes[j][WRITE]);
+					} else{
+						close(pipes[j][WRITE]);
+						close(pipes[j][READ]);
+					}
+				}
 				if (i==j){
 					close(pipes[j][READ]);
 				} else if (j == i-1){
 					close(pipes[j][WRITE]);
-				}
-				else if (i != start){
+				} else{
 					close(pipes[j][WRITE]);
 					close(pipes[j][READ]);
 				}
+
 			}
+			
+			printf("soy el proceso %d\n", i);
+
 			int current_number;
 			if (i == start){
-				read(pipes[n][READ], &current_number, sizeof(int));
+				read(pipePadre[READ], &current_number, sizeof(int));
 				secret_number = generate_random_number();
-				printf("El numero secreto es... %d", secret_number);
+				printf("El numero secreto es... %d\n", secret_number);
 
 				// inicio la comunicacion
 				current_number++;
 				write(pipes[i][WRITE], &current_number, sizeof(secret_number));
 			}
 			
-			while(read(pipes[i-1][READ], current_number, sizeof(int)) == sizeof(int)){	
-				if(i == start && current_number > secret_number){
+			while(read(pipes[i-1][READ], &current_number, sizeof(int)) == sizeof(int)){	
+				if(i == start && current_number >= secret_number){
 					// le mando al padre por el pipe n que ya termine
-					write(pipes[n][WRITE], current_number, sizeof(current_number));
-
-					// cierro el pipe
+					write(pipePadre[WRITE], &current_number, sizeof(current_number));
+					
+					// cierro mis pipes de escritura
 					close(pipes[i][WRITE]);
+					close(pipePadre[WRITE]);
+					close(pipePadre[READ]);
 					}
 				else {
 					current_number++;
-					write(pipes[i][WRITE], current_number, sizeof(int));
+					write(pipes[i][WRITE], &current_number, sizeof(int));
 				}
 			}
 			close(pipes[i-1][READ]);
@@ -83,9 +104,19 @@ int main(int argc, char **argv)
 		}
 	}
 
-	write(pipes[n][WRITE], &c, sizeof(c));
+	write(pipePadre[WRITE], &c, sizeof(c));
+
+	for(int i=0; i<n; i++){
+		wait(NULL);
+		close(pipes[i][READ]);
+		close(pipes[i][WRITE]);
+	}
+
 	int result;
-	read(pipes[n][READ], &result, sizeof(result));
+	read(pipePadre[READ], &result, sizeof(result));
+	close(pipePadre[READ]);
+	close(pipePadre[WRITE])	;
+
 	printf("El resultado es %d\n", result);
     
 }
