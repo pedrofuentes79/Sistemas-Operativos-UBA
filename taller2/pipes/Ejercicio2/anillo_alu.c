@@ -40,26 +40,28 @@ int main(int argc, char **argv)
 	for(int i = 0; i < n; i++){
 		pid_t pid = fork();
 		if(pid == 0){
+			// DECIDO LOS INDICES EN BASE A EN QUE PROCESO ESTOY	
+			int read_index, write_index;
+			if (i == 0){
+				read_index = n-1;
+				write_index = 0;
+			}
+			else {
+				read_index = i-1;
+				write_index = i;
+			}
 			if (i != start){
 				close(pipePadre[READ]);
 				close(pipePadre[WRITE]);
 			}
+
+
 			// cierro los pipes que no uso
 			for (int j = 0; j<n+1; j++){
-				if(i == 0){
-					if(j == i){
-						close(pipes[j][READ]);
-					} else if(j == n-1){
-						close(pipes[j][WRITE]);
-					} else{
-						close(pipes[j][WRITE]);
-						close(pipes[j][READ]);
-					}
-				}
-				if (i==j){
-					close(pipes[j][READ]);
-				} else if (j == i-1){
+				if (j == read_index){
 					close(pipes[j][WRITE]);
+				} else if (j == write_index){
+					close(pipes[j][READ]);
 				} else{
 					close(pipes[j][WRITE]);
 					close(pipes[j][READ]);
@@ -77,17 +79,6 @@ int main(int argc, char **argv)
 				// inicio la comunicacion
 				current_number++;
 				write(pipes[i][WRITE], &current_number, sizeof(secret_number));
-			}
-			
-			// DECIDO LOS INDICES EN BASE A EN QUE PROCESO ESTOY	
-			int read_index, write_index;
-			if (i == 0){
-				read_index = n-1;
-				write_index = 0;
-			}
-			else {
-				read_index = i-1;
-				write_index = i;
 			}
 			
 			while(read(pipes[read_index][READ], &current_number, sizeof(int)) > 0){	
