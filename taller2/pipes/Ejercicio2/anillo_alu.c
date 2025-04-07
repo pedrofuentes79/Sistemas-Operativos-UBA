@@ -40,7 +40,7 @@ int main(int argc, char **argv)
 	for(int i = 0; i < n; i++){
 		pid_t pid = fork();
 		if(pid == 0){
-			if (i!=start){
+			if (i != start){
 				close(pipePadre[READ]);
 				close(pipePadre[WRITE]);
 			}
@@ -67,7 +67,6 @@ int main(int argc, char **argv)
 
 			}
 			
-			printf("soy el proceso %d\n", i);
 
 			int current_number;
 			if (i == start){
@@ -80,23 +79,36 @@ int main(int argc, char **argv)
 				write(pipes[i][WRITE], &current_number, sizeof(secret_number));
 			}
 			
-			while(read(pipes[i-1][READ], &current_number, sizeof(int)) == sizeof(int)){	
+			// DECIDO LOS INDICES EN BASE A EN QUE PROCESO ESTOY	
+			int read_index, write_index;
+			if (i == 0){
+				read_index = n-1;
+				write_index = 0;
+			}
+			else {
+				read_index = i-1;
+				write_index = i;
+			}
+			
+			while(read(pipes[read_index][READ], &current_number, sizeof(int)) > 0){	
 				if(i == start && current_number >= secret_number){
 					// le mando al padre por el pipe n que ya termine
 					write(pipePadre[WRITE], &current_number, sizeof(current_number));
 					
 					// cierro mis pipes de escritura
-					close(pipes[i][WRITE]);
+					close(pipes[write_index][WRITE]);
 					close(pipePadre[WRITE]);
 					close(pipePadre[READ]);
 					}
 				else {
+					printf("soy el proceso %d. Recibí %d\n", i, current_number);
 					current_number++;
-					write(pipes[i][WRITE], &current_number, sizeof(int));
+					write(pipes[write_index][WRITE], &current_number, sizeof(int));
 				}
 			}
-			close(pipes[i-1][READ]);
-			close(pipes[i][WRITE]);
+			// cierro mis pipes que uso
+			close(pipes[read_index][READ]); 
+			close(pipes[write_index][WRITE]);
 			exit(EXIT_SUCCESS);
 				
 		} else {
