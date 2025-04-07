@@ -81,8 +81,8 @@ static int run(char ***progs, size_t n)
 
 		waitpid(children[i], &status, 0);
 		if (!WIFEXITED(status)) {
-			fprintf(stderr, "proceso %d no terminó correctamente [%d]: ",
-				(int)children[i], WIFSIGNALED(status));
+			fprintf(stderr, "proceso [%d] %d no terminó correctamente [%d]: ",
+				i, (int)children[i], WIFSIGNALED(status));
 			perror("");
 			return -1;
 		}
@@ -110,7 +110,7 @@ int main(int argc, char **argv)
 	// programs_with_parameters[0] = ["ls", "-a"]
 	// programs_with_parameters[1] = ["grep", "anillo"]
 	char*** programs_with_parameters = parse_input(argv, &programs_count);
-
+	printf("programs_count: %d\n", programs_count);
 	printf("status: %d\n", run(programs_with_parameters, programs_count));
 
 	fflush(stdout);
