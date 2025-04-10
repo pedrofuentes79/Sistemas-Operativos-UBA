@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <time.h>
+#include <errno.h>
 #include "constants.h"
 enum {READ, WRITE};
 int status, pid, n, start, c, secret_number;
@@ -21,12 +22,18 @@ int main(int argc, char **argv)
 	c = atoi(argv[2]);
 	start = atoi(argv[3]);
 	int pipePadre[2];
-	pipe(pipePadre);
+	if (pipe(pipePadre) == -1) {
+		perror("Error creating pipe");
+		exit(EXIT_FAILURE);
+	}
 
 	// n pipes (por ser anillo) y uno mas para la comunicacion padre->start
 	int pipes[n][2];
 	for (int i = 0; i<n; i++){
-		pipe(pipes[i]);
+		if (pipe(pipes[i]) == -1) {
+			perror("Error creating pipe");
+			exit(EXIT_FAILURE);
+		}
 	}
 	
 	// lista de hijos
@@ -72,20 +79,33 @@ int main(int argc, char **argv)
 
 			int current_number;
 			if (i == start){
-				read(pipePadre[READ], &current_number, sizeof(int));
+				ssize_t bytes_read = read(pipePadre[READ], &current_number, sizeof(int));
+				if (bytes_read == -1) {
+					perror("Error reading from pipe");
+					exit(EXIT_FAILURE);
+				}
 				secret_number = generate_random_number();
 				printf("El numero secreto es... %d\n", secret_number);
 
 				// inicio la comunicacion
 				current_number++;
-				write(pipes[i][WRITE], &current_number, sizeof(secret_number));
+				ssize_t bytes_written = write(pipes[i][WRITE], &current_number, sizeof(secret_number));
+				if (bytes_written == -1) {
+					perror("Error writing to pipe");
+					exit(EXIT_FAILURE);
+				}
 			}
 			
-			while(read(pipes[read_index][READ], &current_number, sizeof(int)) > 0){	
+			ssize_t bytes_read;
+			while((bytes_read = read(pipes[read_index][READ], &current_number, sizeof(int))) > 0){	
 				printf("soy el proceso %d. Recibí %d\n", i, current_number);
 				if(i == start && current_number >= secret_number){
 					// le mando al padre por el pipe n que ya termine
-					write(pipePadre[WRITE], &current_number, sizeof(current_number));
+					ssize_t bytes_written = write(pipePadre[WRITE], &current_number, sizeof(current_number));
+					if (bytes_written == -1) {
+						perror("Error writing to pipe");
+						exit(EXIT_FAILURE);
+					}
 					printf("envie a padre resultado\n");
 					// cierro mis pipes de escritura
 					close(pipes[write_index][WRITE]);
@@ -94,8 +114,16 @@ int main(int argc, char **argv)
 					}
 				else {
 					current_number++;
-					write(pipes[write_index][WRITE], &current_number, sizeof(int));
+					ssize_t bytes_written = write(pipes[write_index][WRITE], &current_number, sizeof(int));
+					if (bytes_written == -1) {
+						perror("Error writing to pipe");
+						exit(EXIT_FAILURE);
+					}
 				}
+			}
+			if (bytes_read == -1) {
+				perror("Error reading from pipe");
+				exit(EXIT_FAILURE);
 			}
 			// cierro mis pipes que uso
 			close(pipes[read_index][READ]); 
@@ -111,14 +139,22 @@ int main(int argc, char **argv)
 		close(pipes[i][READ]);
 		close(pipes[i][WRITE]);
 	}
-	write(pipePadre[WRITE], &c, sizeof(c)); //numero inicial
+	ssize_t bytes_written = write(pipePadre[WRITE], &c, sizeof(c)); //numero inicial
+	if (bytes_written == -1) {
+		perror("Error writing to pipe");
+		exit(EXIT_FAILURE);
+	}
 
 	for(int i=0; i<n; i++){
 		wait(NULL);
 	}
 
 	int result;
-	read(pipePadre[READ], &result, sizeof(result));
+	ssize_t bytes_read = read(pipePadre[READ], &result, sizeof(result));
+	if (bytes_read == -1) {
+		perror("Error reading from pipe");
+		exit(EXIT_FAILURE);
+	}
 	close(pipePadre[READ]);
 	close(pipePadre[WRITE])	;
 
