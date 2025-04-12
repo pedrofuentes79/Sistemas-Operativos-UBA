@@ -4,3 +4,6 @@ venv
 
 bins/
 .DS_Store
+taller2/pipes/Ejercicio2/anillo_alu
+taller2/pipes/Ejercicio3/cliente
+taller2/pipes/Ejercicio3/servidor

@@ -19,14 +19,10 @@ int main() {
         exit(1);
     }
 
-    char expresion[100];
-    int resultado;
-    printf("Ingrese una expresión: ");
-    scanf("%s", expresion);
-
-    write(server_socket, expresion, sizeof(expresion));
-    read(server_socket, &resultado, sizeof(resultado));
-    printf("Cliente: recibí %d del servidor!\n", resultado);
+    int num = 42;
+    write(server_socket, &num, sizeof(num));
+    read(server_socket, &num, sizeof(num));
+    printf("Cliente: recibí %d del servidor!\n", num);
 
     close(server_socket);
     exit(0);
