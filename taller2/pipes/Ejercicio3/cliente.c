@@ -12,7 +12,7 @@ int server_socket;
 
 //Si se hace CTRL+C, le envía un exit al servidor para que termine el proceso del cliente
 void handler_sigint(){
-    write(server_socket,"exit",4);
+    write(server_socket,"exit",5);
     close(server_socket);
     exit(0);
 }
@@ -43,6 +43,7 @@ int main() {
         
         //Si se escribió exit ya no vamos a enviar más mensajes
         if (strcmp("exit",expresion) == 0){
+            write(server_socket,"exit",4);
             break;
         }
 
