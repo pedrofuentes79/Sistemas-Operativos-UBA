@@ -43,7 +43,7 @@ int main() {
         
         //Si se escribió exit ya no vamos a enviar más mensajes
         if (strcmp("exit",expresion) == 0){
-            write(server_socket,"exit",4);
+            write(server_socket,"exit",5);
             break;
         }
 
