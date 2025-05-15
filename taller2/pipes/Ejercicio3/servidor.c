@@ -48,17 +48,28 @@ int calcular(const char *expresion) {
     return resultado;
 }
 
-void manejar_cliente(int client_socket) {
+void manejar_cliente(int client_socket,int pid) {
     char expresion[100];
     int resultado;
     
-    recv(client_socket, expresion, sizeof(expresion), 0);
-    printf("Servidor: recibí la expresión '%s' del cliente\n", expresion);
+    while(1){
+
+        recv(client_socket, expresion, sizeof(expresion), 0);
+        
+        //Si recibe un exit, quiero terminar el proceso
+        if(strcmp("exit",expresion) == 0){
+            printf("Cierro el cliente\n");
+            break;
+        }
+
+        printf("Servidor: recibí la expresión '%s' del cliente\n", expresion);
+        
+        resultado = calcular(expresion);
+        printf("Servidor: el resultado es %d\n", resultado);
+        
+        send(client_socket, &resultado, sizeof(resultado), 0);
+    }
     
-    resultado = calcular(expresion);
-    printf("Servidor: el resultado es %d\n", resultado);
-    
-    send(client_socket, &resultado, sizeof(resultado), 0);
     close(client_socket);
 }
 
@@ -105,7 +116,7 @@ int main() {
             // codigo del proceso hijo
             // El hijo no necesita el socket del servidor, lo cierro
             close(server_socket); 
-            manejar_cliente(client_socket);
+            manejar_cliente(client_socket,pid);
             exit(0); 
         } else {
             // codigo del proceso padre
@@ -117,4 +128,3 @@ int main() {
 
     exit(0);
 }
-
