@@ -8,20 +8,65 @@
 #include <linux/slab.h>    // kmalloc
 #include <linux/random.h>  // get_random_bytes
 
-static int upper_bound = -1;
+static int last_number = 0;
 
 static ssize_t azar_read(struct file *filp, char __user *data, size_t size, loff_t *offset) {
-    
-    /* Completar */
-    
-    return -EPERM;
+    unsigned int random_bytes;
+    int random_num;
+    int max_str_size;
+    char *str;
+    ssize_t len;
+
+    if (last_number == 0) {
+        return -EPERM;
+    }
+
+    // generamos un numero aleatorio
+    get_random_bytes(&random_bytes, sizeof(random_bytes));
+    random_num = random_bytes % last_number;
+
+    max_str_size = 12; // 10 digitos + newline + null terminator
+    str = kmalloc(max_str_size, GFP_KERNEL);
+
+    // convertimos el numero a cadena de caracteres, incluyendo newline
+    len = snprintf(str, max_str_size, "%d\n", random_num);
+
+    // copiamos la cadena de caracteres al buffer del usuario
+    copy_to_user(data, str, len);
+
+    kfree(str);
+    return len;
 }
 
 static ssize_t azar_write(struct file *filp, const char __user *data, size_t size, loff_t *offset) {
-    
-    /* Completar */
-    
-    return -EPERM;
+    char *buf;
+    int parsed_num;
+
+    if (size == 0) {
+        return -EPERM;
+    }
+
+    buf = kmalloc(size + 1, GFP_KERNEL);
+
+    copy_from_user(buf, data, size);
+    buf[size] = '\0';
+
+    if (kstrtoint(buf, 10, &parsed_num) != 0) {
+        // valor invalido. Resetear last_number.
+        last_number = 0;
+        kfree(buf);
+        return -EPERM;
+    }
+
+    // Chequeamos que el numero sea positivo
+    if (parsed_num < 0) {
+        last_number = 0;
+        return -EINVAL;
+    } else {
+        last_number = parsed_num;
+    }
+
+    return size;
 }
 
 static struct file_operations azar_fops = {
