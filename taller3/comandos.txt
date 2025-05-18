@@ -1,0 +1,1 @@
+make && sudo rmmod azar && sudo insmod azar.ko && sudo python3 ../../tests/azar_test.py
