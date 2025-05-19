@@ -7,6 +7,7 @@
 #include <linux/uaccess.h> // copy_to_user
 #include <linux/slab.h>    // kmalloc
 #include <linux/random.h>  // get_random_bytes
+#include <linux/semaphore.h> // semaphore
 
 #define SLOT_COUNT 3
 
@@ -20,7 +21,7 @@ static spinlock_t current_users_lock;
 typedef struct user_data {  
     bool valid;
     char input;
-    spinlock_t lock;
+    struct semaphore sem;
 } user_data;
 
 static int letras_open(struct inode *inod, struct file *filp) {
@@ -39,7 +40,7 @@ static int letras_open(struct inode *inod, struct file *filp) {
     filp->private_data = kmalloc(sizeof(user_data), GFP_KERNEL);
     udata = (user_data *) filp->private_data;
     udata->valid = false; 
-    spin_lock_init(&(udata->lock));
+    sema_init(&(udata->sem), 1);
 
     return 0;
 }
@@ -59,9 +60,9 @@ static ssize_t letras_read(struct file *filp, char __user *data, size_t size, lo
     int i;
  
     // bloqueo para que no se pueda leer hasta que no se termine de escribir. 
-    spin_lock(&(udata->lock));
+    down(&(udata->sem));
     if (!udata->valid) {
-        spin_unlock(&(udata->lock));
+        up(&(udata->sem));
         return -EPERM;
     }
     char_copies = kmalloc(size, GFP_KERNEL);
@@ -69,7 +70,7 @@ static ssize_t letras_read(struct file *filp, char __user *data, size_t size, lo
         char_copies[i] = udata->input;
     }
 
-    spin_unlock(&(udata->lock));
+    up(&(udata->sem));
 
     copy_to_user(data, char_copies, size);
     kfree(char_copies);
@@ -80,7 +81,7 @@ static ssize_t letras_write(struct file *filp, const char __user *data, size_t s
     user_data *udata = (user_data *) filp->private_data;
 
     // bloqueo para que no se pueda escribir hasta que no se termine de leer. 
-    spin_lock(&(udata->lock));
+    down(&(udata->sem));
     // solo se puede escribir el primer caracter. Si ya se habia escrito, se ignora.
     if (!(udata->valid)) {
 
@@ -90,7 +91,7 @@ static ssize_t letras_write(struct file *filp, const char __user *data, size_t s
         
     }
     
-    spin_unlock(&(udata->lock));
+    up(&(udata->sem));
     return size;
 }
 
