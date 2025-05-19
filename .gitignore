@@ -16,3 +16,4 @@ vm-taller/
 *.order
 *.o
 *.mod.c
+*.pyc
