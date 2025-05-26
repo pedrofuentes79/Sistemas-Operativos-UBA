@@ -279,12 +279,16 @@ unsigned int Ext2FS::blockaddr2sector(unsigned int block)
 struct Ext2FSInode * Ext2FS::load_inode(unsigned int inode_number)
 {
 	//TODO: Ejercicio 2
+	int block_size = 1024 << _superblock->log_block_size;
+	return NULL;
 
 }
 
 unsigned int Ext2FS::get_block_address(struct Ext2FSInode * inode, unsigned int block_number)
 {
 
+	int block_size = 1024 << _superblock->log_block_size;
+	return -1;
 	//TODO: Ejercicio 1
 
 }
@@ -340,8 +344,6 @@ fd_t Ext2FS::open(const char * path, const char * mode)
 
 	// We ignore mode
 	struct Ext2FSInode * inode = inode_for_path(path);
-	assert(inode != NULL);
-	std::cerr << *inode << std::endl;
 
 	if(inode == NULL)
 		return -1;
