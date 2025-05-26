@@ -278,19 +278,113 @@ unsigned int Ext2FS::blockaddr2sector(unsigned int block)
  */
 struct Ext2FSInode * Ext2FS::load_inode(unsigned int inode_number)
 {
-	//TODO: Ejercicio 2
 	int block_size = 1024 << _superblock->log_block_size;
-	return NULL;
+	int inode_size = _superblock->inode_size;
+	int inodes_per_block = block_size / inode_size;
+
+	// Block group del inodo 
+	int block_group_number = blockgroup_for_inode(inode_number);
+
+	// Numero del inodo dentro del block group. 
+	int block_group_inode_index = blockgroup_inode_index(inode_number);
+
+	// Obtengo el block group
+	struct Ext2FSBlockGroupDescriptor * bg_descriptor = block_group(block_group_number);
+	unsigned int inode_table_starting_block = bg_descriptor->inode_table;
+	
+	// en cual bloque de la tabla de inodos esta mi inodo?
+	// esto me devuelve si en el 1ro, 2do etc. No me dice la LBA
+	int block_for_this_inode = (int) block_group_inode_index / inodes_per_block;
+
+	// luego, busco el bloque que tiene mi inodo
+	// esto lo puedo hacer porque la tabla de inodos esta escrita sobre bloques contiguos!
+	int lba_for_this_inode = inode_table_starting_block + block_for_this_inode;
+
+	// obtengo el indice de mi inodo dentro de la tabla. 
+	// si hay 1000 inodos por bloque, y yo tengo el inodo 1004, su indice va a ser 4 en la tabla 2.
+	int inode_index_within_table = block_group_inode_index % inodes_per_block;
+
+	// Leo el bloque de la tabla de inodos en el que va a estar mi inodo
+	unsigned int* inode_table_block = (unsigned int*) malloc(block_size);
+	read_block(lba_for_this_inode, (unsigned char*)inode_table_block);
+
+	// Obtengo el numero de block en el que esta mi inodo
+	int inode_table_entry_block_number = inode_table_block[inode_index_within_table];
+
+	// Leo el bloque que tiene a mi inodo
+	unsigned int* inode_table_entry = (unsigned int*) malloc(block_size);
+	read_block(inode_table_entry_block_number, (unsigned char*)inode_table_entry);
+	
+	// Ahora, se que dentro de ese bloque esta mi inodo.
+	// Para saber el indice dentro del bloque, tengo que hacer esta cuenta
+	int inode_index_within_block = block_group_inode_index % inodes_per_block;
+
+	// Ahora, puedo obtener el inodo
+	struct Ext2FSInode* inode = (struct Ext2FSInode*) malloc(inode_size);
+	memcpy(inode, inode_table_entry + inode_index_within_block * inode_size, inode_size);
+
+	free(inode_table_block);
+	free(inode_table_entry);
+
+	return inode;
 
 }
 
 unsigned int Ext2FS::get_block_address(struct Ext2FSInode * inode, unsigned int block_number)
 {
-
+	// Devolver la LBA correspondiente a un block number, dado el inodo y block_number
+	// Es decir, debemos implementar lo siguiente
+	// 1. Si el block_number esta en los directos, devolverlo
+	// 2. Si esta en el bloque indirecto, accederlo y devolver el que corresponde
+	// 3. Si esta en el bloque doble indirecto, accederlo, encontrar el indirecto y devolver el que corresponde
+	unsigned int final_address;
 	int block_size = 1024 << _superblock->log_block_size;
-	return -1;
-	//TODO: Ejercicio 1
+	int lba_addr_size = 4;
+	int blocks_in_an_indirect_block = block_size / lba_addr_size;
+	int block_numbers_covered_by_indirect = blocks_in_an_indirect_block + 12;
+	int block_numbers_covered_by_double_indirect = block_numbers_covered_by_indirect + block_numbers_covered_by_indirect * block_numbers_covered_by_indirect;
 
+
+	if (block_number < 12){
+		// caso directo
+		return inode->block[block_number];
+	} else if (block_number < block_numbers_covered_by_indirect){
+		// caso indirecto
+		// indice del target dentro del arreglo del bloque indirecto
+		int indirect_index = block_number - 12;
+
+		unsigned int* indirect_block_buffer = (unsigned int*)malloc(block_size);
+		read_block(inode->block[12], (unsigned char*)indirect_block_buffer);
+		final_address = indirect_block_buffer[indirect_index];
+		
+		free(indirect_block_buffer);
+ 	} else if (block_number < block_numbers_covered_by_double_indirect){
+		// caso doblemente indirecto
+		// en cual de los indirectos esta?
+		
+		// este es el indice como si fuese un bloque contiguo de muchos indirectos...
+		int double_indirect_index = block_number - block_numbers_covered_by_indirect;
+
+		int indirect_block_index = (int)(double_indirect_index / blocks_in_an_indirect_block);
+		int indirect_index_inside_block = double_indirect_index - indirect_block_index * blocks_in_an_indirect_block;
+
+
+		unsigned int* double_indirect_block = (unsigned int*) malloc(block_size);
+		read_block(inode->block[13], (unsigned char*)double_indirect_block);
+
+		unsigned int* indirect_block = (unsigned int*) malloc(block_size);
+		read_block(double_indirect_block[indirect_block_index], (unsigned char*)indirect_block);
+
+		final_address = indirect_block[indirect_index_inside_block];
+		
+		free(double_indirect_block);
+		free(indirect_block);
+ 	} else{
+		// caso triplemente indirecto: no implementado
+		final_address = -1;
+	}
+
+	return final_address;
 }
 
 void Ext2FS::read_block(unsigned int block_address, unsigned char * buffer)

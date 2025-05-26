@@ -46,6 +46,7 @@ void test_block_groups(Ext2FS * fs){
 void test_load_inode(Ext2FS * fs){
 	cout << "=== Test Load Inode ===" << endl;
     Ext2FSInode *inodo = fs->load_inode(23674);
+	printf("Inodo: %d\n", inodo->size);
     assert(inodo->size == 1024);
     inodo = fs->load_inode(23673);
     assert(inodo->size == 8961201);
