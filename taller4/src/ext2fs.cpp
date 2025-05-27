@@ -419,7 +419,7 @@ struct Ext2FSInode * Ext2FS::get_file_inode_from_dir_inode(struct Ext2FSInode * 
 		offset = curr_dentry - (current_block_data + block_size);
 		current_block = get_block_address(from, i);
 		next_block = get_block_address(from, i+1);
-		// printf("Current block: %d. i: %d\n", current_block, i);
+		printf("Current block: %d. i: %d\n", current_block, i);
 	}
 
 
@@ -439,23 +439,6 @@ struct Ext2FSInode * Ext2FS::get_file_inode_from_dir_inode(struct Ext2FSInode * 
 
 	return NULL;
 
-}
-struct Ext2FSInode * Ext2FS::recorrerDentry(unsigned int bnumber, int size, const char * filename){
-	Ext2FSDirEntry* block_data = (Ext2FSDirEntry*) malloc(size);
-	read_block(bnumber, (unsigned char*) block_data);
-
-	int found = 0;
-	Ext2FSDirEntry* curr_dentry = block_data;
-	while (!found && curr_dentry < block_data + size){
-		if (strcmp(curr_dentry->name, filename) == 0){
-			found = 1;
-		} else {
-			curr_dentry += curr_dentry->record_length; 
-		}
-	}
-	if(found){
-		return load_inode(curr_dentry->inode);
-	} else return NULL;
 }
 
 
