@@ -412,12 +412,21 @@ struct Ext2FSInode * Ext2FS::get_file_inode_from_dir_inode(struct Ext2FSInode * 
             if (curr_dentry->record_length == 0) {
                 break; // Evito loop infinito si la current dentry esta vacia (length 0)
             }
+			// STRING PARA DEBUGGING
+			char dentname[256]; 
+			unsigned int name_len = curr_dentry->name_length < 255 ? curr_dentry->name_length : 255;
+			strncpy(dentname, curr_dentry->name, name_len);
+			dentname[name_len] = '\0';
+
+			std::cerr << "current dentry: " << dentname << std::endl;
 
 			// Comparo el nombre del directorio con el nombre del archivo que busco
 			// Necesito comparar hasta name_length y asegurar que las longitudes coincidan.
 			if (curr_dentry->name_length == strlen(filename) &&
 			    strncmp(curr_dentry->name, filename, curr_dentry->name_length) == 0){
-				std::cerr << "found file" << std::endl;
+				
+				std::cerr << "found file: " << dentname << std::endl;
+
 				free(current_block_data);
 				return load_inode(curr_dentry->inode);
 			} else {
@@ -444,15 +453,23 @@ struct Ext2FSInode * Ext2FS::get_file_inode_from_dir_inode(struct Ext2FSInode * 
 
 
 		while ((unsigned char*)curr_dentry < block_end){
-			std::cerr << "current dentry: " << curr_dentry->name << std::endl;
+			// STRING PARA DEBUGGING
+			char dentname[256]; 
+			unsigned int name_len = curr_dentry->name_length < 255 ? curr_dentry->name_length : 255;
+			strncpy(dentname, curr_dentry->name, name_len);
+			dentname[name_len] = '\0';
+
             if (curr_dentry->record_length == 0) {
                 break;
             }
+			std::cerr << "final: current dentry: " << dentname << std::endl;
+
 
 			// Comparo el nombre del directorio con el nombre del archivo que busco
 			// Necesito comparar hasta name_length y asegurar que las longitudes coincidan.
 			if (curr_dentry->name_length == strlen(filename) &&
 			    strncmp(curr_dentry->name, filename, curr_dentry->name_length) == 0){
+				std::cerr << "final: found file: " << dentname << std::endl;
 				free(current_block_data);
 				return load_inode(curr_dentry->inode);
 			} else {
