@@ -251,7 +251,7 @@ struct Ext2FSInode * Ext2FS::inode_for_path(const char * path)
 	while(pathtok != NULL)
 	{
 		struct Ext2FSInode * prev_inode = inode;
-		// std::cerr << "pathtok: " << pathtok << std::endl;
+		std::cerr << "pathtok: " << pathtok << std::endl;
 		inode = get_file_inode_from_dir_inode(prev_inode, pathtok);
 		pathtok = strtok(NULL, PATH_DELIM);
 
@@ -283,16 +283,16 @@ struct Ext2FSInode * Ext2FS::load_inode(unsigned int inode_number)
 	int inode_size = _superblock->inode_size;
 	int inodes_per_block = block_size / inode_size;
 
-	// Block group del inodo 
+	// Block group del inodo
 	int block_group_number = blockgroup_for_inode(inode_number);
 
-	// Numero del inodo dentro del block group. 
+	// Numero del inodo dentro del block group.
 	int block_group_inode_index = blockgroup_inode_index(inode_number);
 
 	// Obtengo el block group
 	struct Ext2FSBlockGroupDescriptor * bg_descriptor = block_group(block_group_number);
 	unsigned int inode_table_starting_block = bg_descriptor->inode_table;
-	
+
 	// en cual bloque de la tabla de inodos esta mi inodo?
 	// esto me devuelve si en el 1ro, 2do etc. No me dice la LBA
 	int table_block_for_this_inode = (int) block_group_inode_index / inodes_per_block;
@@ -301,7 +301,7 @@ struct Ext2FSInode * Ext2FS::load_inode(unsigned int inode_number)
 	// esto lo puedo hacer porque la tabla de inodos esta escrita sobre bloques contiguos!
 	int lba_for_this_inode = inode_table_starting_block + table_block_for_this_inode;
 
-	// obtengo el indice de mi inodo dentro de la tabla. 
+	// obtengo el indice de mi inodo dentro de la tabla.
 	// si hay 1000 inodos por bloque, y yo tengo el inodo 1004, su indice va a ser 4 en la tabla 2.
 	int inode_index_within_table = block_group_inode_index % inodes_per_block;
 
@@ -316,7 +316,6 @@ struct Ext2FSInode * Ext2FS::load_inode(unsigned int inode_number)
 	free(inode_block);
 
 	return inode;
-
 }
 
 unsigned int Ext2FS::get_block_address(struct Ext2FSInode * inode, unsigned int block_number)
@@ -335,7 +334,7 @@ unsigned int Ext2FS::get_block_address(struct Ext2FSInode * inode, unsigned int 
 
 	if (block_number < 12){
 		// caso directo
-		int cantidad_bloques_del_inodo = inode->size / block_size; // o usar inode->blocks
+		int cantidad_bloques_del_inodo = inode->size / block_size;  // o usar inode->blocks
 		if (block_number >= cantidad_bloques_del_inodo) return -1;
 
 		return inode->block[block_number];
@@ -390,51 +389,83 @@ struct Ext2FSInode * Ext2FS::get_file_inode_from_dir_inode(struct Ext2FSInode * 
 {
 	if(from == NULL)
 		from = load_inode(EXT2_RDIR_INODE_NUMBER);
-	//std::cerr << *from << std::endl;
+	// std::cerr << *from << std::endl;
 	assert(INODE_ISDIR(from));
 
-	//TODO: Ejercicio 3
 	unsigned int block_size = 1024 << _superblock->log_block_size;
 
 	int i = 0;
 	int offset = 0;
-	unsigned int current_block = get_block_address(from, i);
-	unsigned int next_block = get_block_address(from, i+1);
+	int current_block = get_block_address(from, i);
+	int next_block = get_block_address(from, i+1);
 
 	while(next_block != -1){
 		Ext2FSDirEntry* current_block_data = (Ext2FSDirEntry*) malloc(block_size * 2);
 		read_block(current_block, (unsigned char*) current_block_data);
 		read_block(next_block, (unsigned char*) current_block_data + block_size);
 
-		Ext2FSDirEntry* curr_dentry = current_block_data + offset;
-		while (curr_dentry < current_block_data + block_size){
-			printf("name: %s\n", curr_dentry->name);
-			if (strcmp(curr_dentry->name, filename) == 0){
+		unsigned char* buffer_start = (unsigned char*)current_block_data;
+		unsigned char* buffer_end = buffer_start + block_size * 2;
+		Ext2FSDirEntry* curr_dentry = (Ext2FSDirEntry*)(buffer_start + offset);
+
+		while ((unsigned char*)curr_dentry < buffer_end){
+            if (curr_dentry->record_length == 0) {
+                break; // Evito loop infinito si la current dentry esta vacia (length 0)
+            }
+			if ((unsigned char*)(curr_dentry + curr_dentry->record_length) > buffer_end){
+				break;
+			}
+
+			// Comparo el nombre del directorio con el nombre del archivo que busco
+			// Necesito comparar hasta name_length y asegurar que las longitudes coincidan.
+			if (curr_dentry->name_length == strlen(filename) &&
+			    strncmp(curr_dentry->name, filename, curr_dentry->name_length) == 0){
+				free(current_block_data);
 				return load_inode(curr_dentry->inode);
 			} else {
-				curr_dentry += curr_dentry->record_length;
-			} 
+				curr_dentry = (Ext2FSDirEntry*)((unsigned char*)curr_dentry + curr_dentry->record_length);
+			}
 		}
+		
+		free(current_block_data);
+
 		i++;
 		offset = curr_dentry - (current_block_data + block_size);
 		current_block = get_block_address(from, i);
 		next_block = get_block_address(from, i+1);
-		printf("Current block: %d. i: %d\n", current_block, i);
 	}
 
 
-	if (next_block == -1 && current_block != -1){
+	// Este caso es cuando ya se que current_block es el ultimo bloque
+	if (current_block != -1){
 		Ext2FSDirEntry* current_block_data = (Ext2FSDirEntry*) malloc(block_size);
 		read_block(current_block, (unsigned char*) current_block_data);
 		
-		Ext2FSDirEntry* curr_dentry = current_block_data + offset;
-		while (curr_dentry < current_block_data + block_size){
-			if (strcmp(curr_dentry->name, filename) == 0){
+		Ext2FSDirEntry* curr_dentry = (Ext2FSDirEntry*) ((unsigned char*)current_block_data + offset);
+		unsigned char* block_end = (unsigned char*)current_block_data + block_size;
+
+
+		while ((unsigned char*)curr_dentry < block_end){
+            if (curr_dentry->record_length == 0) {
+                break;
+            }
+			if ((unsigned char*)(curr_dentry + curr_dentry->record_length) > block_end){
+				break;
+			}
+
+			// Comparo el nombre del directorio con el nombre del archivo que busco
+			// Necesito comparar hasta name_length y asegurar que las longitudes coincidan.
+			if (curr_dentry->name_length == strlen(filename) &&
+			    strncmp(curr_dentry->name, filename, curr_dentry->name_length) == 0){
+				std::cerr << "found file" << curr_dentry->name << std::endl;
+				free(current_block_data);
 				return load_inode(curr_dentry->inode);
 			} else {
-				curr_dentry += 8 + (unsigned int) stoi(curr_dentry->name_length);
+				curr_dentry = (Ext2FSDirEntry*)((unsigned char*)curr_dentry + curr_dentry->record_length);
 			}
 		}
+		free(current_block_data);
+
 	}
 
 	return NULL;
