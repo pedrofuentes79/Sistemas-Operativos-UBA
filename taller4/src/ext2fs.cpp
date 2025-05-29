@@ -412,14 +412,12 @@ struct Ext2FSInode * Ext2FS::get_file_inode_from_dir_inode(struct Ext2FSInode * 
             if (curr_dentry->record_length == 0) {
                 break; // Evito loop infinito si la current dentry esta vacia (length 0)
             }
-			if ((unsigned char*)(curr_dentry + curr_dentry->record_length) > buffer_end){
-				break;
-			}
 
 			// Comparo el nombre del directorio con el nombre del archivo que busco
 			// Necesito comparar hasta name_length y asegurar que las longitudes coincidan.
 			if (curr_dentry->name_length == strlen(filename) &&
 			    strncmp(curr_dentry->name, filename, curr_dentry->name_length) == 0){
+				std::cerr << "found file" << std::endl;
 				free(current_block_data);
 				return load_inode(curr_dentry->inode);
 			} else {
@@ -446,18 +444,15 @@ struct Ext2FSInode * Ext2FS::get_file_inode_from_dir_inode(struct Ext2FSInode * 
 
 
 		while ((unsigned char*)curr_dentry < block_end){
+			std::cerr << "current dentry: " << curr_dentry->name << std::endl;
             if (curr_dentry->record_length == 0) {
                 break;
             }
-			if ((unsigned char*)(curr_dentry + curr_dentry->record_length) > block_end){
-				break;
-			}
 
 			// Comparo el nombre del directorio con el nombre del archivo que busco
 			// Necesito comparar hasta name_length y asegurar que las longitudes coincidan.
 			if (curr_dentry->name_length == strlen(filename) &&
 			    strncmp(curr_dentry->name, filename, curr_dentry->name_length) == 0){
-				std::cerr << "found file" << curr_dentry->name << std::endl;
 				free(current_block_data);
 				return load_inode(curr_dentry->inode);
 			} else {
